@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 280px; padding: 10px; font-family: sans-serif; font-size: 14px; }
+    h3 { margin-top: 0; }
+    textarea { width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+    button { width: 100%; padding: 8px; cursor: pointer; }
+    .status { color: green; text-align: center; height: 16px; margin-top: 5px;}
+  </style>
+</head>
+<body>
+  <h3>Default Action</h3>
+  <label><input type="radio" name="action" value="remove" checked> Remove completely</label><br>
+  <label><input type="radio" name="action" value="hide"> Hide (display: none)</label>
+
+  <h3>Custom Selectors</h3>
+  <p style="font-size: 12px; color: gray; margin-top: 2px;">
+    Comma-separated (e.g., .my-popup, #ad-banner)
+  </p>
+  <textarea id="customSelectors" rows="4" placeholder=".class-name, #id-name"></textarea>
+
+  <button id="save">Save Settings</button>
+  <div id="status" class="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
