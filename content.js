@@ -10,6 +10,11 @@ const builtInSelectors = [
     '#gr-consent-layer-area', '#didomi-css', '#didomi-host',
 ];
 
+// Some consent managers generate a new class name for every page load, but put
+// their overlay on an almost-maximum CSS layer.  This value is deliberately
+// very high so normal site dialogs, menus, and notifications are not targets.
+const suspiciousZIndex = 2147483000;
+
 let userSettings = { defaultAction: 'remove', customSelectors: [] };
 let changesCount = 0;
 
@@ -122,12 +127,59 @@ function processTargets() {
     return targetWasHandled;
 }
 
+// Find full-screen/modal overlays whose class name cannot be targeted reliably.
+// Sampling the elements currently on top of the viewport is much cheaper than
+// calculating the style of every element on every MutationObserver callback.
+function processHighZIndexOverlays() {
+    if (!document.elementsFromPoint || !window.innerWidth || !window.innerHeight) {
+        return false;
+    }
+
+    const points = [
+        [0.5, 0.5], [0.5, 0.1], [0.5, 0.9],
+        [0.1, 0.5], [0.9, 0.5], [0.1, 0.1],
+        [0.9, 0.1], [0.1, 0.9], [0.9, 0.9],
+    ];
+    const candidates = new Set();
+
+    points.forEach(([x, y]) => {
+        document.elementsFromPoint(Math.round(window.innerWidth * x), Math.round(window.innerHeight * y))
+            .forEach(element => {
+                // The element at a point can be a child of the overlay. Check
+                // its ancestors as well, stopping before page-level elements.
+                for (let current = element; current && current !== document.body; current = current.parentElement) {
+                    candidates.add(current);
+                }
+            });
+    });
+
+    let targetWasHandled = false;
+    candidates.forEach(element => {
+        if (!element.isConnected) {
+            return;
+        }
+
+        const style = window.getComputedStyle(element);
+        const zIndex = Number.parseInt(style.zIndex, 10);
+        const isOverlay = style.position === 'fixed' || style.position === 'absolute';
+        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) !== 0;
+
+        if (isOverlay && isVisible && zIndex >= suspiciousZIndex && handleElement(element, userSettings.defaultAction)) {
+            targetWasHandled = true;
+            changesCount++;
+        }
+    });
+
+    return targetWasHandled;
+}
+
 // 5. Main logic
 function runChecks() {
     const foundAndHandledTarget = processTargets();
+    const foundAndHandledHighZOverlay = processHighZIndexOverlays();
     const handledSpecificSite = handleSpecificSites();
     
-    if (foundAndHandledTarget || handledSpecificSite) {
+    if (foundAndHandledTarget || foundAndHandledHighZOverlay || handledSpecificSite) {
         fixScroll();
         updateBadge();
     }
